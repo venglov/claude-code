@@ -4,7 +4,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/USER/REPO/main/setup-claude-code.sh | bash
 #
 # Author: Vyacheslav
-# Version: 2.2.0
+# Version: 2.2.1
 # Updated: January 2026
 #
 # Features:
@@ -112,12 +112,17 @@ echo ""
 mkdir -p "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 
+# Clean up any stale installation locks
+rm -f "$HOME/.claude/.installing" 2>/dev/null
+rm -f "$HOME/.claude/install.lock" 2>/dev/null
+rm -f /tmp/claude-install.lock 2>/dev/null
+
 # Download and run install script with visible output and timeout
 INSTALL_SUCCESS=false
 if curl -fsSL --max-time 30 https://claude.ai/install.sh -o /tmp/claude-install.sh 2>&1; then
-    print_step "Install script downloaded, running installer..."
+    print_step "Install script downloaded, running installer with --force..."
     echo ""
-    if timeout 600 bash /tmp/claude-install.sh; then
+    if timeout 600 bash /tmp/claude-install.sh --force; then
         INSTALL_SUCCESS=true
     fi
     rm -f /tmp/claude-install.sh
