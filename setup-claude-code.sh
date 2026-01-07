@@ -4,7 +4,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/USER/REPO/main/setup-claude-code.sh | bash
 #
 # Author: Vyacheslav
-# Version: 2.0.0
+# Version: 2.1.0
 # Updated: January 2026
 #
 # Features:
@@ -12,6 +12,7 @@
 #   - Flexible permissions for ~/  and /opt/
 #   - Dynamic CLAUDE.md generation based on actual server state
 #   - No hardcoded directory structure assumptions
+#   - Verbose output with progress indicators and timeouts
 #
 
 set -e
@@ -83,10 +84,10 @@ print_step "Detected OS: $OS $OS_VERSION"
 print_header "Installing Dependencies"
 
 print_step "Updating package lists..."
-sudo apt-get update -qq
+sudo apt-get update -q
 
-print_step "Installing essential packages..."
-sudo apt-get install -y -qq \
+print_step "Installing essential packages (curl, wget, git, tmux, htop, ripgrep, jq, unzip)..."
+sudo apt-get install -y \
     curl \
     wget \
     git \
@@ -95,8 +96,7 @@ sudo apt-get install -y -qq \
     ripgrep \
     jq \
     unzip \
-    ca-certificates \
-    > /dev/null 2>&1
+    ca-certificates
 
 print_success "Essential packages installed"
 
@@ -106,23 +106,41 @@ print_success "Essential packages installed"
 print_header "Installing Claude Code"
 
 print_step "Installing via native binary (recommended)..."
+print_step "This may take a few minutes to download (~100MB)..."
+echo ""
 
 mkdir -p "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 
-if curl -fsSL https://claude.ai/install.sh | bash 2>/dev/null; then
+# Download and run install script with visible output and timeout
+INSTALL_SUCCESS=false
+if curl -fsSL --max-time 30 https://claude.ai/install.sh -o /tmp/claude-install.sh 2>&1; then
+    print_step "Install script downloaded, running installer..."
+    echo ""
+    if timeout 600 bash /tmp/claude-install.sh; then
+        INSTALL_SUCCESS=true
+    fi
+    rm -f /tmp/claude-install.sh
+fi
+
+if [ "$INSTALL_SUCCESS" = true ]; then
     if ! grep -q '.local/bin' "$HOME/.bashrc" 2>/dev/null; then
         echo '' >> "$HOME/.bashrc"
         echo '# Claude Code' >> "$HOME/.bashrc"
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
+    echo ""
     print_success "Claude Code installed via native binary"
 else
-    print_warning "Native binary failed. Installing Node.js + npm as fallback..."
+    echo ""
+    print_warning "Native binary installation failed. Installing Node.js + npm as fallback..."
     INSTALL_NODEJS=true
 
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1
-    sudo apt-get install -y -qq nodejs > /dev/null 2>&1
+    print_step "Adding NodeSource repository..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+
+    print_step "Installing Node.js..."
+    sudo apt-get install -y nodejs
 
     mkdir -p "$HOME/.npm-global"
     npm config set prefix "$HOME/.npm-global"
@@ -132,6 +150,7 @@ else
         echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "$HOME/.bashrc"
     fi
 
+    print_step "Installing Claude Code via npm (this may take a minute)..."
     npm install -g @anthropic-ai/claude-code
     print_success "Claude Code installed via npm"
 fi
