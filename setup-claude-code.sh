@@ -403,7 +403,6 @@ cat > "$CLAUDE_CONFIG_DIR/settings.json" << 'EOF'
       "Bash(rm -rf /opt)",
       "Bash(dd if=*)",
       "Bash(mkfs*)",
-      "Bash(:(){ :|:& };:)",
       "Write(/etc/passwd)",
       "Write(/etc/shadow)",
       "Read(/etc/shadow)"
