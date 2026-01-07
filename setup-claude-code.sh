@@ -4,7 +4,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/USER/REPO/main/setup-claude-code.sh | bash
 #
 # Author: Vyacheslav
-# Version: 2.1.0
+# Version: 2.2.0
 # Updated: January 2026
 #
 # Features:
@@ -133,36 +133,56 @@ if [ "$INSTALL_SUCCESS" = true ]; then
     print_success "Claude Code installed via native binary"
 else
     echo ""
-    print_warning "Native binary installation failed. Installing Node.js + npm as fallback..."
-    INSTALL_NODEJS=true
+    print_warning "Native binary installation failed."
+    echo ""
+    read -p "Try installing via Node.js + npm as fallback? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        INSTALL_NODEJS=true
 
-    print_step "Adding NodeSource repository..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        print_step "Adding NodeSource repository..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 
-    print_step "Installing Node.js..."
-    sudo apt-get install -y nodejs
+        print_step "Installing Node.js..."
+        sudo apt-get install -y nodejs
 
-    mkdir -p "$HOME/.npm-global"
-    npm config set prefix "$HOME/.npm-global"
-    export PATH="$HOME/.npm-global/bin:$PATH"
+        mkdir -p "$HOME/.npm-global"
+        npm config set prefix "$HOME/.npm-global"
+        export PATH="$HOME/.npm-global/bin:$PATH"
 
-    if ! grep -q 'npm-global' "$HOME/.bashrc" 2>/dev/null; then
-        echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "$HOME/.bashrc"
+        if ! grep -q 'npm-global' "$HOME/.bashrc" 2>/dev/null; then
+            echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "$HOME/.bashrc"
+        fi
+
+        # Clear any stale npm lock files that may block installation
+        print_step "Clearing npm cache and stale locks..."
+        rm -rf "$HOME/.npm/_locks" 2>/dev/null
+        rm -rf "$HOME/.npm-global/lib/node_modules/.package-lock.json" 2>/dev/null
+        npm cache clean --force 2>/dev/null
+
+        print_step "Installing Claude Code via npm (this may take a minute)..."
+        if npm install -g @anthropic-ai/claude-code; then
+            print_success "Claude Code installed via npm"
+        else
+            print_error "npm installation failed. You may need to install Claude Code manually."
+            print_step "Try: npm cache clean --force && npm install -g @anthropic-ai/claude-code"
+        fi
+    else
+        print_warning "Skipping npm installation. You can install Claude Code manually later:"
+        echo "  Native: curl -fsSL https://claude.ai/install.sh | bash"
+        echo "  npm:    npm install -g @anthropic-ai/claude-code"
     fi
-
-    print_step "Installing Claude Code via npm (this may take a minute)..."
-    npm install -g @anthropic-ai/claude-code
-    print_success "Claude Code installed via npm"
 fi
 
 # Verify installation
 export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
+CLAUDE_INSTALLED=false
 if command -v claude &> /dev/null; then
     CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "installed")
     print_success "Claude Code $CLAUDE_VERSION ready"
+    CLAUDE_INSTALLED=true
 else
-    print_error "Installation failed!"
-    exit 1
+    print_warning "Claude Code not installed. Continuing with environment setup..."
 fi
 
 # ============================================
@@ -564,12 +584,19 @@ print_success "Created ~/update-claude-context helper"
 # ============================================
 # SUMMARY
 # ============================================
-print_header "Installation Complete!"
+print_header "Setup Complete!"
 
-echo -e "${GREEN}${BOLD}Claude Code installed successfully!${NC}\n"
-
-if [ "$INSTALL_NODEJS" = true ]; then
-    echo -e "${YELLOW}Note: Installed via npm (Node.js fallback)${NC}\n"
+if [ "$CLAUDE_INSTALLED" = true ]; then
+    echo -e "${GREEN}${BOLD}Claude Code installed successfully!${NC}\n"
+    if [ "$INSTALL_NODEJS" = true ]; then
+        echo -e "${YELLOW}Note: Installed via npm (Node.js fallback)${NC}\n"
+    fi
+else
+    echo -e "${YELLOW}${BOLD}Environment configured (Claude Code not yet installed)${NC}\n"
+    echo -e "${CYAN}To install Claude Code later:${NC}"
+    echo "  Native: ${YELLOW}curl -fsSL https://claude.ai/install.sh | bash${NC}"
+    echo "  npm:    ${YELLOW}npm install -g @anthropic-ai/claude-code${NC}"
+    echo ""
 fi
 
 echo -e "${CYAN}Quick Start:${NC}"
