@@ -1,75 +1,96 @@
-# Claude Code VPS Setup Scripts
+# Claude Code Universal VPS Setup
 
-Quick installation and configuration of [Claude Code](https://claude.ai) on VPS servers.
+Quick installation and configuration of [Claude Code](https://claude.ai) on any VPS server with automatic service discovery.
 
-## 🚀 Quick Start
-
-### Full Installation (recommended)
+## Quick Start
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/YOUR_USERNAME/claude-code-vps/main/setup-claude-code.sh | bash
+curl -fsSL https://raw.githubusercontent.com/venglov/claude-code/main/setup-claude-code.sh | bash
 ```
 
 or
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/claude-code-vps/main/setup-claude-code.sh | bash
+wget -qO- https://raw.githubusercontent.com/venglov/claude-code/main/setup-claude-code.sh | bash
 ```
 
-### Minimal Installation
+## Features
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/claude-code-vps/main/setup-claude-code-minimal.sh | bash
-```
+- **Auto-discovery** — Automatically detects Docker Compose projects, Minecraft servers, media servers (Jellyfin/Plex), and other services
+- **Flexible permissions** — Full access to `~/`, `/opt/`, `/srv/` out of the box
+- **Dynamic context** — CLAUDE.md generated based on actual server state
+- **No assumptions** — Works with any existing directory structure
 
-## 📦 What Gets Installed
+## What Gets Installed
 
 | Component | Description |
-|-----------|----------|
-| Claude Code CLI | Native binary (no dependencies!) |
+|-----------|-------------|
+| Claude Code CLI | Native binary (no Node.js required) |
 | tmux | Session persistence on disconnect |
 | ripgrep | Fast file search |
-| Workspace | Directory structure and configs |
+| Configuration | Permissions, commands, and server context |
 
-> **Note:** Node.js is **not required** for native binary installation.
-> Install Node.js only if you need MCP servers via `npx`.
+## What Gets Configured
 
-## 🔧 What Gets Configured
+- **~/CLAUDE.md** — Auto-generated server context with discovered services
+- **~/.claude/settings.json** — Flexible permissions for VPS administration
+- **Custom Commands:**
+  - `/project:status` — Comprehensive health check
+  - `/project:discover` — Find all services and projects
+  - `/project:logs <target>` — Analyze logs
+  - `/project:backup <target>` — Create backups
+- **~/start-claude** — Quick launcher with tmux
+- **~/update-claude-context** — Re-scan for new services
 
-- **CLAUDE.md** — server context (OS, hostname, installed services)
-- **Permissions** — secure access rights for Claude
-- **Custom Commands** — ready-made commands for administration:
-  - `/project:status` — check server status
-  - `/project:deploy <service>` — deploy Docker service
-  - `/project:logs <service>` — analyze logs
-  - `/project:backup <service>` — backup service
-  - `/project:update <service>` — update images
-- **Subagent monitor** — agent for system monitoring
-- **tmux config** — convenient terminal configuration
-
-## 📁 Structure After Installation
+## Structure After Installation
 
 ```
 $HOME/
-├── claude                    # Quick start script
-├── claude-workspace/         # Working directory
-│   ├── CLAUDE.md            # Project context
-│   ├── README.md            # Documentation
-│   └── .claude/
-│       ├── settings.json    # Access permissions
-│       ├── commands/        # Custom commands
-│       │   ├── status.md
-│       │   ├── deploy.md
-│       │   ├── logs.md
-│       │   ├── backup.md
-│       │   └── update.md
-│       └── agents/
-│           └── monitor.md   # Monitoring subagent
-├── services/                # Docker Compose services
-└── .tmux.conf               # tmux configuration
+├── start-claude              # Quick start script (tmux session)
+├── update-claude-context     # Re-discovery helper
+├── CLAUDE.md                 # Auto-generated server context
+├── .claude/
+│   ├── settings.json         # Permissions configuration
+│   └── commands/
+│       ├── status.md
+│       ├── discover.md
+│       ├── logs.md
+│       └── backup.md
+└── .tmux.conf                # tmux configuration
 ```
 
-## 🔑 Authentication
+## Auto-Discovery
+
+The script automatically scans for and documents:
+
+| Type | Detection Method |
+|------|------------------|
+| Docker Compose | `docker-compose.yml`, `compose.yml` in /opt, /home, /srv |
+| Minecraft | `server.properties` files |
+| Media Servers | Jellyfin, Plex, Emby directories |
+| Projects | `.git`, `package.json`, `requirements.txt`, etc. |
+| Running Containers | `docker ps` output |
+| Listening Ports | Active network services |
+
+Run `~/update-claude-context` after installing new services to refresh.
+
+## Permissions
+
+**Allowed by default:**
+- Read anywhere
+- Write to `~/`, `/opt/`, `/srv/`
+- Docker, systemctl, journalctl
+- Common tools: git, curl, wget, tar, apt, npm, python, java, etc.
+- Network tools: ss, netstat, ip, ufw
+- SSL: certbot, nginx
+
+**Blocked:**
+- `rm -rf /`, `rm -rf /*`
+- `dd`, `mkfs` (disk operations)
+- Write to `/etc/passwd`, `/etc/shadow`
+- Fork bombs
+
+## Authentication
 
 ### Option 1: API Key
 
@@ -86,9 +107,8 @@ Get your key: https://console.anthropic.com/
 ### Option 2: OAuth (Claude Pro/Max)
 
 ```bash
-# On VPS
 claude
-# Follow the instructions for OAuth through browser
+# Follow OAuth instructions
 ```
 
 For headless servers use SSH tunnel:
@@ -100,104 +120,77 @@ ssh -L 8080:localhost:8080 user@your-vps
 # On VPS run claude and open the URL in your local browser
 ```
 
-## 🎮 Usage
+## Usage
 
 ### Launch
 
 ```bash
 # Via quick start script (tmux session)
-~/claude
+~/start-claude
 
 # Or via alias
 cc
 
-# Direct
-cd ~/claude-workspace && claude
+# Direct launch
+claude
 ```
 
 ### tmux Commands
 
 | Key | Action |
-|------|----------|
+|-----|--------|
 | `Ctrl+a d` | Detach (Claude continues running) |
 | `Ctrl+a \|` | Split vertically |
 | `Ctrl+a -` | Split horizontally |
 | `Alt+arrows` | Navigate between panes |
 
-### Usage Examples
+### Examples
 
 ```bash
-# Check server status
+# Check server health
 /project:status
 
-# Deploy new service
-/project:deploy nginx
+# Find all services on this server
+/project:discover
 
-# Use subagent
-Use the monitor subagent to analyze system performance
+# Analyze logs for a container
+/project:logs nginx
+
+# Create backup
+/project:backup /opt/myapp
 
 # Continue last session
 claude -c
 ```
 
-## 🔒 Security
-
-The script configures limited access permissions:
-
-**Allowed:**
-- Read files
-- Write to ~/claude-workspace/ and ~/services/
-- Docker commands
-- View logs and service status
-- Git, npm, curl etc.
-
-**Denied:**
-- rm -rf /
-- Write to /etc/
-- Read /etc/shadow
-- Destructive operations
-
-## 📋 Requirements
+## Requirements
 
 - Ubuntu 20.04+ / Debian 10+
 - User with sudo access
 - Internet connection
 
-## 🔌 Installing Node.js (optional)
+## Installing Node.js (Optional)
 
 Node.js is needed **only** for MCP servers via `npx`:
 
 ```bash
-# Install Node.js 20
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
-# Configure npm without sudo
 mkdir -p ~/.npm-global
 npm config set prefix '~/.npm-global'
 echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-Or edit the script and set `INSTALL_NODEJS=true` before running.
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### command not found: claude
 
 ```bash
 source ~/.bashrc
 # or
-export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
-```
-
-### Permission denied on npm install
-
-The script automatically configures npm to work without sudo. If the problem persists:
-
-```bash
-mkdir -p ~/.npm-global
-npm config set prefix '~/.npm-global'
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ### Verify Installation
@@ -206,12 +199,19 @@ npm config set prefix '~/.npm-global'
 claude doctor
 ```
 
-## 📝 License
+### Re-discover Services
+
+```bash
+~/update-claude-context
+# Or re-run the setup script for full regeneration
+```
+
+## License
 
 MIT
 
-## 🔗 Links
+## Links
 
-- [Claude Code Documentation](https://code.claude.com/docs)
+- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
 - [Anthropic Console](https://console.anthropic.com/)
 - [Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
